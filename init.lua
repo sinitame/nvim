@@ -19,59 +19,68 @@ require("colorscheme")
 
 -- Setup Mason
 require("mason").setup({
-    ui = {
-        icons = {
-            package_installed = "",
-            package_pending = "",
-            package_uninstalled = "",
-        },
-    }
+  ui = {
+    icons = {
+      package_installed = "",
+      package_pending = "",
+      package_uninstalled = "",
+    },
+  },
 })
 require("mason-lspconfig").setup()
 
--- Setup NVIM LSP for Rust
-local rt = require("rust-tools")
+-- Keymaps for LSP (ensure this file exists at lua/keymaps.lua)
+local keymaps = require("keymaps")
 
+-- Setup NVIM LSP for Rust via rust-tools
+local rt = require("rust-tools")
 rt.setup({
   server = {
-    on_attach = function(_, bufnr)
-      -- Hover actions
+    on_attach = function(client, bufnr)
+      -- General LSP keymaps
+      keymaps.on_attach(client, bufnr)
+      -- Rust-specific: Hover actions
       vim.keymap.set("n", "<C-space>", rt.hover_actions.hover_actions, { buffer = bufnr })
-      -- Code action groups
+      -- Rust-specific: Code action groups
       vim.keymap.set("n", "<Leader>a", rt.code_action_group.code_action_group, { buffer = bufnr })
     end,
+    settings = {
+      ["rust-analyzer"] = {
+        cargo = { allFeatures = true },
+        checkOnSave = { command = "clippy" },
+      },
+    },
   },
 })
 
--- Rust tool config using Nvim diagnose API
+-- Diagnostics configuration
 require("nvim-lsp")
 
 -- Setup NVIM auto complete
 require("autocomplete")
-
--- Setup auto-complete for Rust
 require("autocomplete-rs")
 
--- Setup tree sitter
+-- Setup Tree-sitter
 require('nvim-treesitter.configs').setup {
   ensure_installed = { "lua", "rust", "toml", "python" },
   auto_install = true,
   highlight = {
     enable = true,
-    additional_vim_regex_highlighting=false,
+    additional_vim_regex_highlighting = false,
   },
-  ident = { enable = true }, 
-  rainbow = {
-    enable = true,
-    extended_mode = true,
-    max_file_lines = nil,
-  }
+  indent = { enable = true },
+  rainbow = { enable = true, extended_mode = true, max_file_lines = nil },
 }
 require("treesitter")
 
--- NVIM Tree 
+-- NVIM Tree file explorer
 require("nvim-tree").setup()
 
-require("lspconfig")["pyright"].setup({})
--- Setup NVIM LSP for python
-require("pyright")
+-- Setup Pyright with unified on_attach
+local lspconfig = require("lspconfig")
+local pyright_cfg = require("pyright")
+lspconfig.pyright.setup(vim.tbl_deep_extend("force",
+  pyright_cfg.default_config, {
+    on_attach = keymaps.on_attach,
+  }
+))
